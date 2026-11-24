@@ -1,0 +1,82 @@
+== duck mode: lower the system volume to 25 % while the assistant listens
+[t=   0.0s] music is on, system volume 50
+-- 1. a real call over the music
+[t=   0.0s]   ducker: ducked: volume 50 -> 13
+[t=   0.0s] first gate fired, room is loud -> ducked
+[t=   1.8s] second gate on "Nova, turn off the desk lamp": confirmed (name_at_head) -> command: "turn off the desk lamp"
+[t=   1.8s]   ducker: assistant is about to speak; volume back to 50
+[t=   1.8s] assistant says "Desk lamp off." (system volume 50)
+[t=   2.8s] round over -> not_holding
+-- 2. a false wake 20 s later is ignored (one round per 60 s)
+[t=  22.8s]   ducker: too soon after the last round (60 s gap), not touching the music
+[t=  22.8s] first gate fired -> too_soon
+[t=  23.8s] second gate on "and then the chorus comes back in": rejected (no_name)
+[t=  23.8s] system volume 50
+-- 3. the first try is drowned out, the second try works
+[t=  83.8s]   ducker: ducked: volume 50 -> 13
+[t=  83.8s] first gate fired -> ducked
+[t=  85.3s]   round: second gate said no (no_name); waiting 6 s for another call
+[t=  85.3s] second gate on "uh ... the": rejected (no_name)
+[t=  88.3s]   round: called again within 6 s: same round, music stays down
+[t=  88.3s] first gate fired again -> retry
+[t=  89.9s] second gate on "Nova, what time is it?": confirmed (name_at_head) -> command: "what time is it?"
+[t=  89.9s]   ducker: assistant is about to speak; volume back to 50
+[t=  89.9s] assistant says "It's ten past four." (system volume 50)
+[t=  89.9s] round over -> not_holding
+-- 4. a look-alike on the radio, nobody calls again
+[t= 159.9s]   ducker: ducked: volume 50 -> 13
+[t= 159.9s] first gate fired -> ducked
+[t= 161.1s]   round: second gate said no (lookalike); waiting 6 s for another call
+[t= 161.1s] second gate on "bossa nova for the evening": rejected (lookalike)
+[t= 167.1s]   ducker: no second call within 6 s; volume back to 50
+[t= 167.1s] tick -> restored, system volume 50
+-- 5. the person turns it down by hand while ducked: their choice wins
+[t= 238.1s]   ducker: ducked: volume 50 -> 13
+[t= 238.1s] first gate fired -> ducked
+[t= 238.9s] person drags the volume to 5
+[t= 238.9s] second gate on "nova, pause for a bit": confirmed (name_at_head) -> command: "pause for a bit"
+[t= 238.9s]   ducker: assistant is about to speak; volume was changed by hand (now 5), leaving it
+[t= 238.9s] assistant says "Okay." (system volume 5)
+[t= 238.9s] round over -> not_holding
+-- 6. the name in the middle of a sentence is not a call
+[t= 308.9s] person turns the music back up to 50
+[t= 308.9s]   ducker: ducked: volume 50 -> 13
+[t= 308.9s] first gate fired -> ducked
+[t= 309.9s]   round: second gate said no (late_in_sentence); waiting 6 s for another call
+[t= 309.9s] second gate on "I was telling them about the new nova lamp": mid_sentence (late_in_sentence)
+[t= 315.9s]   ducker: no second call within 6 s; volume back to 50
+[t= 315.9s] tick -> restored, system volume 50
+-- 7. a quiet room: nothing to duck
+[t= 386.9s] first gate fired, room is quiet -> quiet
+[t= 387.9s] second gate on "Nova, good night": confirmed (name_at_head) -> command: "good night"
+[t= 387.9s] assistant says "Good night." (system volume 50)
+[t= 387.9s] round over -> not_holding
+[t= 387.9s] counts: held=5, restored=4, user_changed=1, too_soon=1, nothing_playing=1, did_not_stop=0
+
+== pause mode: pause the music app, resume it when the round is over
+[t=   0.0s] music-app is playing; the room detector does not count music as loud
+-- 1. a call: pause, answer at full volume, resume
+[t=   0.3s]   ducker: paused: music-app
+[t=   0.3s] first gate fired, room_loud=False -> paused
+[t=   1.8s] second gate on "Hey Nova, add oat milk to the list": confirmed (name_at_head) -> command: "add oat milk to the list"
+[t=   1.8s] assistant says "Added." (system volume 50)
+[t=   1.8s] music-app is paused while the assistant speaks
+[t=   1.8s]   ducker: round over; resumed: music-app
+[t=   1.8s] round over -> resumed
+-- 2. the person presses play themselves during the round: we leave it
+[t=  72.1s]   ducker: paused: music-app
+[t=  72.1s] first gate fired -> paused
+[t=  73.1s] person presses play
+[t=  73.1s]   round: second gate said no (no_name); waiting 6 s for another call
+[t=  73.1s] second gate on "never mind": rejected (no_name)
+[t=  73.1s]   ducker: round over; the app was changed by hand, leaving it
+[t=  73.1s] round over -> left_alone
+-- 3. an app that ignores pause: nothing changed, so the 60 s gap is not used up
+[t= 143.4s]   ducker: asked 1 app(s) to pause, still playing; leaving it
+[t= 143.4s] first gate fired -> did_not_stop
+[t= 148.7s]   ducker: paused: music-app
+[t= 148.7s] 5 s later, music-app playing, first gate fired -> paused
+[t= 148.7s]   ducker: round over; resumed: music-app
+[t= 148.7s] round over -> resumed
+[t= 148.7s] counts: held=3, restored=2, user_changed=0, too_soon=0, nothing_playing=0, did_not_stop=1
+[t= 148.7s] actions on the fake system: pause(music-app), play(music-app), pause(music-app), pause(stubborn-app), pause(music-app), play(music-app)
